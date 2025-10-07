@@ -1,5 +1,6 @@
 # mbed-dut-schedule
 clock with DUT (my uni) schedule, on an esp32s3 and a st7735 128x160 display
+![demo](demo.jpg)
 ## wiring
 ### esp32s3
 |label   |pin|changeable|

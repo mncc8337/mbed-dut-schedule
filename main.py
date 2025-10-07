@@ -3,14 +3,11 @@ import helper
 from scraper import Scraper
 import time
 import json
-import _thread
 import network
 import requests
 import ntptime 
-from machine import RTC, SPI, PWM, UART
+from machine import RTC, SPI, PWM
 from machine import Pin
-import machine
-import esp32
 from ST7735 import TFT
 from sysfont import sysfont
 import vietnamese
@@ -184,13 +181,13 @@ class App:
 
 app = App()
 prev_day = -1
-today_schedule = app.get_schedule()
+today_schedule = None
 tft = app.tft
 
-def serial_handler():
-    pass
-
-_thread.start_new_thread(serial_handler, ())
+# def serial_handler():
+#     pass
+#
+# _thread.start_new_thread(serial_handler, ())
 
 while True:
     datetime = time.localtime()
@@ -203,19 +200,19 @@ while True:
         app.calculate_current_week()
         prev_day = datetime[2]
         update_schedule_flag = True
-
-    # get next day's schedule if today schedule is done
-    last_class = today_schedule[-1]
-    last_class_end_period = PERIOD[last_class["end_period"]]
-    year, month, day, weekday, _, _, _, _ = datetime
-    t = time.mktime((year, month, day, last_class_end_period[1][0], last_class_end_period[1][1], 0, 0, 0))
-    if time.time() >= t:
-        schedule_weekday += 1
-        if schedule_weekday >= 7:
-            schedule_weekday = 0
-            schedule_week += 1
-        decorate_text = "Tomorrow"
-        update_schedule_flag = True
+    else:
+        # get next day's schedule if today schedule is done
+        last_class = today_schedule[-1]
+        last_class_end_period = PERIOD[last_class["end_period"]]
+        year, month, day, weekday, _, _, _, _ = datetime
+        t = time.mktime((year, month, day, last_class_end_period[1][0], last_class_end_period[1][1], 0, 0, 0))
+        if time.time() >= t:
+            schedule_weekday += 1
+            if schedule_weekday >= 7:
+                schedule_weekday = 0
+                schedule_week += 1
+            decorate_text = "Tomorrow"
+            update_schedule_flag = True
 
     if update_schedule_flag:
         today_schedule = app.get_schedule(schedule_week, schedule_weekday)
