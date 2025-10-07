@@ -183,24 +183,20 @@ app = App()
 prev_day = -1
 today_schedule = None
 tft = app.tft
-
-# def serial_handler():
-#     pass
-#
-# _thread.start_new_thread(serial_handler, ())
+decorate_text = "Today"
 
 while True:
     datetime = time.localtime()
     schedule_weekday = datetime[6]
     schedule_week = app.current_week
-    decorate_text = "Today"
     update_schedule_flag = False
 
     if datetime[2] != prev_day:
         app.calculate_current_week()
         prev_day = datetime[2]
+        decorate_text = "Today"
         update_schedule_flag = True
-    else:
+    elif decorate_text == "Today":
         # get next day's schedule if today schedule is done
         last_class = today_schedule[-1]
         last_class_end_period = PERIOD[last_class["end_period"]]
@@ -243,5 +239,5 @@ while True:
     v += sysfont["Height"] * 4 + 5
 
 
-    time.sleep(60)
+    time.sleep(30)
 
