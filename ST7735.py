@@ -1,6 +1,6 @@
 # this file was taken from
 # https://github.com/boochow/MicroPython-ST7735
-# without any modification
+# with a little modification
 
 #driver for Sainsmart 1.8" TFT display ST7735
 #Translated by Guy Carver from the ST7735 sample code.
@@ -214,26 +214,33 @@ class TFT(object) :
 
       charA = aFont["Data"][ci:ci + fontw]
       px = aPos[0]
-      if aSizes[0] <= 1 and aSizes[1] <= 1 :
-        buf = bytearray(2 * fonth * fontw)
-        for q in range(fontw) :
-          c = charA[q]
-          for r in range(fonth) :
-            if c & 0x01 :
-              pos = 2 * (r * fontw + q)
-              buf[pos] = aColor >> 8
-              buf[pos + 1] = aColor & 0xff
-            c >>= 1
-        self.image(aPos[0], aPos[1], aPos[0] + fontw - 1, aPos[1] + fonth - 1, buf)
-      else:
-        for c in charA :
-          py = aPos[1]
-          for r in range(fonth) :
-            if c & 0x01 :
-              self.fillrect((px, py), aSizes, aColor)
-            py += aSizes[1]
-            c >>= 1
-          px += aSizes[0]
+
+      # the code below does not retain the color of undrawn regions
+      # and i dont want to add another param to this func
+      # so it is ignored for the sake of simplicity
+
+      # if aSizes[0] <= 1 and aSizes[1] <= 1 :
+      #   buf = bytearray(2 * fonth * fontw)
+      #   for q in range(fontw) :
+      #     c = charA[q]
+      #     for r in range(fonth) :
+      #       if c & 0x01 :
+      #         pos = 2 * (r * fontw + q)
+      #         buf[pos] = aColor >> 8
+      #         buf[pos + 1] = aColor & 0xff
+      #       c >>= 1
+      #   self.image(aPos[0], aPos[1], aPos[0] + fontw - 1, aPos[1] + fonth - 1, buf)
+      # else:
+
+      # this code block was unindent by 1 level
+      for c in charA :
+        py = aPos[1]
+        for r in range(fonth) :
+          if c & 0x01 :
+            self.fillrect((px, py), aSizes, aColor)
+          py += aSizes[1]
+          c >>= 1
+        px += aSizes[0]
 
 #   @micropython.native
   def line( self, aStart, aEnd, aColor ) :

@@ -49,7 +49,7 @@ class Scraper:
         if resp.url != HOME_URL:
             raise Exception("unknown error, got redirected to " + resp.url)
 
-    def get_schedule(self, print_table=False):
+    def get_schedule(self):
         resp = requests.get(SCHEDULE_URL, timeout=20, headers=self.headers)
         schedule_html = resp.text
 
@@ -72,32 +72,35 @@ class Scraper:
         schedule = []
 
         for row in table_rows:
-            tkb = row[7].split(",")
-            tiet = tkb[1].split("-")
-            tiet_bat_dau = int(tiet[0])
-            tiet_ket_thuc = int(tiet[1])
-            tuan_hoc = []
+            dates = []
+            for d in row[7].split("; "):
+                date = d.split(",")
+                period = date[1].split("-")
+                start_period = int(period[0])
+                end_period = int(period[1])
+                dates.append({
+                    "weekday": date[0],
+                    "start_period": start_period,
+                    "end_period": end_period,
+                    "room": date[2],
+                })
+
+            weeks = []
             for dur in row[8].split(";"):
                 lst = dur.split("-")
-                tuan_hoc.append([int(lst[0]), int(lst[1])])
+                weeks.append([int(lst[0]), int(lst[1])])
 
-            dat = {
-                "ma lop": row[1],
-                "ten lop": row[2],
-                "so tc": row[3],
-                "giang vien": row[6],
-                "ngay hoc": tkb[0],
-                "tiet bat dau": tiet_bat_dau,
-                "tiet ket thuc": tiet_ket_thuc,
-                "phong": tkb[2],
-                "tuan hoc": tuan_hoc,
-            }
-            schedule.append(dat)
-
-            if print_table:
-                for i in range(len(row)):
-                    if row[i]:
-                        print(i, table_headers[i], ":", row[i])
-                print()
+            for date in dates:
+                dat = {
+                    "class_code": row[1],
+                    "class_name": row[2],
+                    "lecturer": row[6],
+                    "weekday": date["weekday"],
+                    "start_period": date["start_period"],
+                    "end_period": date["end_period"],
+                    "room": date["room"],
+                    "weeks": weeks,
+                }
+                schedule.append(dat)
 
         return schedule
