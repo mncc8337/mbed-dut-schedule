@@ -1,16 +1,22 @@
 import builtins
 import helper
-from scraper import Scraper
 import time
 import json
 import network
-import requests
-import ntptime 
+import ntptime
 from machine import RTC, SPI, PWM
 from machine import Pin
+import _thread
+import neopixel
+
+from scraper import Scraper
 from ST7735 import TFT
 from sysfont import sysfont
 import vietnamese
+
+import asyncio
+import aioble
+import bluetooth
 
 
 # WARNING:
@@ -34,7 +40,17 @@ DC = Pin(5)
 CS = Pin(6)
 BLK = Pin(7, mode=Pin.OUT)
 
+RGB_LED = Pin(48)
+
+MAX_TEXT_LEN = 26
+
+BLE_SERVICE_UUID = bluetooth.UUID('cebcf692-9250-4457-86eb-556ab41ca932')
+BLE_LED_UUID = bluetooth.UUID('8fff00d0-f1c4-437f-a369-e99227720b6c')
+ADV_INTERVAL_MS = 250_000
+
 rtc = RTC()
+
+
 def log(*args, log_type="INFO", not_log=False, **kwargs):
     if not_log:
         builtins.print(*args, **kwargs)
@@ -43,6 +59,8 @@ def log(*args, log_type="INFO", not_log=False, **kwargs):
     dt = rtc.datetime()
     timestamp = f"{dt[0]:04d}-{dt[1]:02d}-{dt[2]:02d} {dt[4]:02d}:{dt[5]:02d}:{dt[6]:02d}"
     builtins.print(f"[{timestamp}] [{log_type}]", *args, **kwargs)
+
+
 builtins.print = log
 
 PERIOD = [
@@ -76,7 +94,6 @@ WEEKDAY = [
 
 
 class App:
-
     def __init__(self):
         self.spi = SPI(SPI_ID, baudrate=20000000)
 
@@ -88,10 +105,16 @@ class App:
 
         # setup screen led pwm
         self.led_pwm = PWM(BLK, freq=5000, duty_u16=0)
-        self.set_led_output(100)
+        self.set_backlight_output(100)
 
         self.tft.fill(TFT.WHITE)
-        self.tft.text((1, 1), "initializing, please wait ...", TFT.BLACK, sysfont, 1)
+        self.tft.text(
+            (1, 1),
+            "initializing, please wait ...",
+            TFT.BLACK,
+            sysfont,
+            1
+        )
 
         print("screen initialized")
 
@@ -104,7 +127,10 @@ class App:
         # connect to an AP
         self.wlan = network.WLAN()
         self.wlan.active(True)
-        self.wlan.connect(self.privates["ssid"], self.privates["ssid_password"])
+        self.wlan.connect(
+            self.privates["ssid"],
+            self.privates["ssid_password"]
+        )
         while not self.wlan.isconnected():
             time.sleep_ms(100)
         print("connected to AP", self.privates["ssid"])
@@ -114,23 +140,50 @@ class App:
             try:
                 self.sync_rtc(7)
                 break
-            except:
-                print("failed to sync time, retrying")
+            except Exception as e:
+                print(f"failed to sync time due to {e}, retrying", log_type="ERROR")
                 time.sleep_ms(100)
         print("time synced")
+
+        self.neopixel = neopixel.NeoPixel(RGB_LED, 1)
+        print("rgb led initialized")
+
+        self.neopixel[0] = (255, 0, 0)
+        self.neopixel.write()
 
         self.calculate_current_week()
         print("current week", self.current_week)
 
         print("trying to scraping ...")
-        self.scraper = Scraper(self.privates["user"], self.privates["password"])
+        self.scraper = Scraper(
+            self.privates["user"],
+            self.privates["password"]
+        )
         self.scraper.login()
         self.schedule = self.scraper.get_schedule()
         print("schedule retrieved")
 
         self.wlan.active(False)
 
-    def set_led_output(self, duty_cycle):
+        # bluetooth stuffs
+        self.bluetooth_on = True
+
+        # register GATT server, the service and characteristics
+        self.ble_service = aioble.Service(BLE_SERVICE_UUID)
+        self.led_characteristic = aioble.Characteristic(
+            self.ble_service,
+            BLE_LED_UUID,
+            read=True,
+            write=True,
+            notify=True,
+            capture=True
+        )
+
+        # register service
+        aioble.register_services(self.ble_service)
+        print("bluetooth services registered")
+
+    def set_backlight_output(self, duty_cycle):
         self.led_pwm.duty_u16(int(duty_cycle/100 * (2 << 15 - 1)))
 
     def sync_rtc(self, tz_offset_hours):
@@ -146,16 +199,57 @@ class App:
         tm = time.localtime(t)
         rtc.datetime((tm[0], tm[1], tm[2], tm[6], tm[3], tm[4], tm[5], 0))
 
+    def set_led_color(self, color):
+        self.neopixel[0] = color
+        self.neopixel.write()
+
     def calculate_current_week(self):
         current_time = helper.get_time()
-        self.current_week = int((current_time - self.privates["starting_date_ts"]) // 604800) + self.privates["starting_week"]
+        self.current_week = int(
+            (current_time - self.privates["starting_date_ts"]) // 604800
+        ) + self.privates["starting_week"]
+
+    async def bluetooth_peripheral_task(self):
+        while self.bluetooth_on:
+            try:
+                async with await aioble.advertise(
+                    ADV_INTERVAL_MS,
+                    name="dut clock",
+                    services=[BLE_SERVICE_UUID],
+                ) as connection:
+                    print("connection from", connection.device)
+                    await connection.disconnected()
+            except asyncio.CancelledError:
+                print("peripheral task cancelled")
+            except Exception as e:
+                print("error in peripheral_task:", e, log_type="ERROR")
+            finally:
+                await asyncio.sleep_ms(100)
+
+    async def bluetooth_wait_for_command(self):
+        while self.bluetooth_on:
+            # try:
+            connection, data = await self.led_characteristic.written()
+            print("got data from", connection, ":", data)
+            data = helper.decode_data(data)
+            data = data.split(" ")
+            if data[0] == "led":
+                self.set_led_color([int(v) for v in data[1].split(",")])
+            else:
+                print("unknown command", log_type="ERROR")
+            # except asyncio.CancelledError:
+            #     print("Peripheral task cancelled")
+            # except Exception as e:
+            #     print("Error in peripheral_task:", e)
+            # finally:
+            await asyncio.sleep_ms(100)
 
     def get_schedule(self, week=None, weekday=None):
         available = []
 
-        if week == None:
+        if week is None:
             week = self.current_week
-        if weekday == None:
+        if weekday is None:
             weekday = time.localtime()[6]
 
         for sub in self.schedule:
@@ -185,6 +279,20 @@ today_schedule = None
 tft = app.tft
 decorate_text = "Today"
 
+
+def ble_thread():
+    async def main():
+        t1 = asyncio.create_task(app.bluetooth_peripheral_task())
+        t2 = asyncio.create_task(app.bluetooth_wait_for_command())
+        await asyncio.gather(t1, t2)
+
+    asyncio.run(main())
+    print("bluetooth turned off")
+
+
+_thread.start_new_thread(ble_thread, ())
+
+
 while True:
     datetime = time.localtime()
     schedule_weekday = datetime[6]
@@ -200,8 +308,17 @@ while True:
         # get next day's schedule if today schedule is done
         last_class = today_schedule[-1]
         last_class_end_period = PERIOD[last_class["end_period"]]
-        year, month, day, weekday, _, _, _, _ = datetime
-        t = time.mktime((year, month, day, last_class_end_period[1][0], last_class_end_period[1][1], 0, 0, 0))
+        year, month, day, _, _, _, _, _ = datetime
+        t = time.mktime((
+            year,
+            month,
+            day,
+            last_class_end_period[1][0],
+            last_class_end_period[1][1],
+            0,
+            0,
+            0
+        ))
         if time.time() >= t:
             schedule_weekday += 1
             if schedule_weekday >= 7:
@@ -218,9 +335,19 @@ while True:
         tft.text((2, v), decorate_text, TFT.GRAY, sysfont, 1)
         v += sysfont["Height"]
         for sub in today_schedule:
-            tft.text((2, v), vietnamese.to_ascii(sub["class_name"]), TFT.BLUE, sysfont, 1, nowrap=True)
+            class_name = vietnamese.to_ascii(sub["class_name"])
+            if len(class_name) > 26:
+                class_name = class_name[:23] + "..."
+
+            tft.text((2, v), class_name, TFT.BLUE, sysfont, 1, nowrap=True)
             v += sysfont["Height"]
-            tft.text((2, v), vietnamese.to_ascii(sub["room"]), TFT.BLACK, sysfont, 1)
+            tft.text(
+                (2, v),
+                vietnamese.to_ascii(sub["room"]),
+                TFT.BLACK,
+                sysfont,
+                1
+            )
             tft.text(
                 (sysfont["Width"] * 5 + 7, v),
                 f"{PERIOD[sub["start_period"]][0][0]:02d}:{PERIOD[sub["start_period"]][0][1]:02d} - {PERIOD[sub["end_period"]][1][0]:02d}:{PERIOD[sub["end_period"]][1][1]:02d}",
@@ -231,13 +358,20 @@ while True:
             v += sysfont["Height"] + 1
 
     v = 2
-    tft.fillrect((2, 2), (sysfont["Width"] * 4 * 5 + 4, 2 + sysfont["Height"] * 4), TFT.WHITE)
-    tft.text((2, v), f"{datetime[3]:02d}:{datetime[4]:02d}", TFT.BLACK, sysfont, 4)
+    tft.fillrect((2, 2), (
+        sysfont["Width"] * 4 * 5 + 4,
+        2 + sysfont["Height"] * 4
+    ), TFT.WHITE)
+    tft.text(
+        (2, v),
+        f"{datetime[3]:02d}:{datetime[4]:02d}",
+        TFT.BLACK,
+        sysfont,
+        4
+    )
     tft.text((109, 3), f"{datetime[2]:02d}", TFT.BLACK, sysfont, 2)
     tft.text((137, 3), f"{datetime[1]:02d}", TFT.BLACK, sysfont, 2)
     tft.text((109, 20), f"{datetime[0]:04d}", TFT.BLACK, sysfont, 1)
     v += sysfont["Height"] * 4 + 5
 
-
     time.sleep(30)
-

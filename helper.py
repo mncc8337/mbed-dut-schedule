@@ -1,10 +1,20 @@
 import time
 
+
 def get_time():
     return time.time() + 946684800
 
+
+def encode_data(data):
+    return str(data).encode('utf-8')
+
+
+def decode_data(data):
+    return data.decode('utf-8')
+
+
 def quote_plus(s):
-    safe_chars = safe_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.~"
+    safe_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.~"
     result = []
     for ch in s:
         if ch in safe_chars:
@@ -15,6 +25,7 @@ def quote_plus(s):
             result.append('%{:02X}'.format(ord(ch)))
     return ''.join(result)
 
+
 def html_unescape(s):
     s = s.replace("&lt;", "<")
     s = s.replace("&gt;", ">")
@@ -22,6 +33,7 @@ def html_unescape(s):
     s = s.replace("&quot;", '"')
     s = s.replace("&#39;", "'")
     return s
+
 
 def get_hidden_field(html, field_name):
     name_str = 'name="' + field_name + '"'
@@ -34,6 +46,7 @@ def get_hidden_field(html, field_name):
     val_start += len('value="')
     val_end = html.find('"', val_start)
     return html[val_start:val_end]
+
 
 def extract_table_html(html, table_id):
     search = 'id="{}"'.format(table_id)
@@ -53,6 +66,7 @@ def extract_table_html(html, table_id):
         # continue searching for next <table>
         start = html.find('<table', tag_end)
     return None
+
 
 def parse_table_rows(table_html):
     rows = []
