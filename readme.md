@@ -10,6 +10,7 @@ when powered, the MCU will try to connect to a specified AP, then post a login r
 [ ] notices
 ## wiring
 ### esp32s3
+tft lcd wiring
 |label   |pin|changeable|
 |--------|---|----------|
 |SCL/SCK |12 |no        |
@@ -18,6 +19,10 @@ when powered, the MCU will try to connect to a specified AP, then post a login r
 |DC/A0   |5  |yes       |
 |CS      |6  |yes       |
 |BLK/VLED|7  |yes       |
+other
+|name       |pin|changeable|
+|-----------|---|----------|
+|RGB_LED_PIN|48 |no        |
 ### other mcu
 you must find out which `SPI_ID` is available on your mcu **BEFORE putting any files on the mcu**, else it would reset constantly and you will need to install a new micropython on it. to do that, run `mpremote repl` then do:
 ```
@@ -28,7 +33,8 @@ you must find out which `SPI_ID` is available on your mcu **BEFORE putting any f
 ...
 ```
 and choose the one without any error/reset. 
-after that, connect SCL/SCK and SDA/MOSI to the printed IO pin of the working `SPI_ID`. RST, DC, CS, BLK can be connected to any pin that isn't conflict with anything internally. reflect the changes on the first few line of `main.py`
+after that, connect SCL/SCK and SDA/MOSI to the printed IO pin of the working `SPI_ID`. RST, DC, CS, BLK can be connected to any pin that isn't conflict with anything internally. reflect the changes on the first few line of `main.py`  
+RGB_LED is the pin that control a neopixel led  
 ## installation
 - follow [micropython's documentation](https://micropython.org/download/) on how to install micropython to your mcu
 - install [mpremote](https://docs.micropython.org/en/latest/reference/mpremote.html)

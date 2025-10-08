@@ -5,7 +5,8 @@ import json
 import network
 import ntptime
 from machine import RTC, SPI, PWM
-from machine import Pin
+from machine import Pin, TouchPad
+import machine
 import _thread
 import neopixel
 
@@ -35,12 +36,16 @@ import bluetooth
 SPI_ID = 1
 
 # for these you can use any pin that isn't conflicted with internal stuffs
-RST = Pin(4)
-DC = Pin(5)
-CS = Pin(6)
-BLK = Pin(7, mode=Pin.OUT)
+RST_PIN = Pin(4)
+DC_PIN = Pin(5)
+CS_PIN = Pin(6)
+BLK_PIN = Pin(7, mode=Pin.OUT)
 
-RGB_LED = Pin(48)
+RGB_LED_PIN = Pin(48)
+
+TOUCH_INCREASE_PIN = Pin(8)
+TOUCH_DECREASE_PIN = Pin(9)
+TOUCH_THRESHOLD = 300000
 
 MAX_TEXT_LEN = 26
 
@@ -98,13 +103,13 @@ class App:
         self.spi = SPI(SPI_ID, baudrate=20000000)
 
         # init screen
-        self.tft = TFT(self.spi, DC, RST, CS)
+        self.tft = TFT(self.spi, DC_PIN, RST_PIN, CS_PIN)
         self.tft.initg()
         self.tft.rgb(True)
         self.tft.rotation(1)
 
         # setup screen led pwm
-        self.led_pwm = PWM(BLK, freq=5000, duty_u16=0)
+        self.led_pwm = PWM(BLK_PIN, freq=5000, duty_u16=0)
         self.set_backlight_output(100)
 
         self.tft.fill(TFT.WHITE)
@@ -145,11 +150,8 @@ class App:
                 time.sleep_ms(100)
         print("time synced")
 
-        self.neopixel = neopixel.NeoPixel(RGB_LED, 1)
+        self.neopixel = neopixel.NeoPixel(RGB_LED_PIN, 1)
         print("rgb led initialized")
-
-        self.neopixel[0] = (255, 0, 0)
-        self.neopixel.write()
 
         self.calculate_current_week()
         print("current week", self.current_week)
@@ -166,7 +168,6 @@ class App:
         self.wlan.active(False)
 
         # bluetooth stuffs
-        self.bluetooth_on = True
 
         # register GATT server, the service and characteristics
         self.ble_service = aioble.Service(BLE_SERVICE_UUID)
@@ -182,6 +183,13 @@ class App:
         # register service
         aioble.register_services(self.ble_service)
         print("bluetooth services registered")
+
+        self.bluetooth_on = False
+        self.bluetooth_started = False
+
+        # start the control thread
+        _thread.start_new_thread(self.second_thread, ())
+        print("control thread started")
 
     def set_backlight_output(self, duty_cycle):
         self.led_pwm.duty_u16(int(duty_cycle/100 * (2 << 15 - 1)))
@@ -228,21 +236,77 @@ class App:
 
     async def bluetooth_wait_for_command(self):
         while self.bluetooth_on:
-            # try:
-            connection, data = await self.led_characteristic.written()
-            print("got data from", connection, ":", data)
-            data = helper.decode_data(data)
-            data = data.split(" ")
-            if data[0] == "led":
-                self.set_led_color([int(v) for v in data[1].split(",")])
-            else:
-                print("unknown command", log_type="ERROR")
-            # except asyncio.CancelledError:
-            #     print("Peripheral task cancelled")
-            # except Exception as e:
-            #     print("Error in peripheral_task:", e)
-            # finally:
-            await asyncio.sleep_ms(100)
+            try:
+                try:
+                    # wait for data for 5 secs
+                    connection, data = await asyncio.wait_for(
+                        self.led_characteristic.written(),
+                        5
+                    )
+                except asyncio.TimeoutError:
+                    continue
+                print("got data from", connection, ":", data)
+                data = helper.decode_data(data)
+                data = data.split(" ")
+                if data[0] == "led":
+                    self.set_led_color([int(v) for v in data[1].split(",")])
+                elif data[0] == "backlight":
+                    self.set_backlight_output(int(data[1]))
+                else:
+                    print("unknown command", log_type="ERROR")
+            except asyncio.CancelledError:
+                print("Peripheral task cancelled")
+            except Exception as e:
+                print("Error in peripheral_task:", e)
+            finally:
+                await asyncio.sleep_ms(100)
+
+    def second_thread(self):
+        # this thread is used to poll inputs
+        # and control bluetooth services
+
+        async def backlight():
+            touch1 = TouchPad(TOUCH_INCREASE_PIN)
+            touch2 = TouchPad(TOUCH_DECREASE_PIN)
+            screen_brightness = 100
+            while True:
+                v1 = touch1.read()
+                v2 = touch2.read()
+                if v1 > TOUCH_THRESHOLD and v2 > TOUCH_THRESHOLD:
+                    self.bluetooth_on = not self.bluetooth_on
+                    await asyncio.sleep(5)
+                elif v1 > TOUCH_THRESHOLD:
+                    screen_brightness += 1
+                elif v2 > TOUCH_THRESHOLD:
+                    screen_brightness -= 1
+
+                if screen_brightness > 100:
+                    screen_brightness = 100
+                if screen_brightness < 2:
+                    screen_brightness = 2
+                self.set_backlight_output(screen_brightness)
+                await asyncio.sleep_ms(10)
+
+        async def main():
+            asyncio.create_task(backlight())
+            ble_tasks = []
+            while True:
+                if self.bluetooth_on and not self.bluetooth_started:
+                    self.bluetooth_started = True
+                    t1 = asyncio.create_task(app.bluetooth_peripheral_task())
+                    t2 = asyncio.create_task(app.bluetooth_wait_for_command())
+                    ble_tasks = [t1, t2]
+                    print("bluetooth started")
+                if not self.bluetooth_on and self.bluetooth_started:
+                    for t in ble_tasks:
+                        t.cancel()
+                        ble_tasks.remove(t)
+                    await asyncio.sleep(0)
+                    self.bluetooth_started = False
+                    print("bluetooth stopped")
+                await asyncio.sleep_ms(100)
+
+        asyncio.run(main())
 
     def get_schedule(self, week=None, weekday=None):
         available = []
@@ -275,22 +339,9 @@ class App:
 
 app = App()
 prev_day = -1
-today_schedule = None
-tft = app.tft
+today_schedule = app.get_schedule()
 decorate_text = "Today"
-
-
-def ble_thread():
-    async def main():
-        t1 = asyncio.create_task(app.bluetooth_peripheral_task())
-        t2 = asyncio.create_task(app.bluetooth_wait_for_command())
-        await asyncio.gather(t1, t2)
-
-    asyncio.run(main())
-    print("bluetooth turned off")
-
-
-_thread.start_new_thread(ble_thread, ())
+tft = app.tft
 
 
 while True:
@@ -304,7 +355,8 @@ while True:
         prev_day = datetime[2]
         decorate_text = "Today"
         update_schedule_flag = True
-    elif decorate_text == "Today":
+
+    if decorate_text == "Today":
         # get next day's schedule if today schedule is done
         last_class = today_schedule[-1]
         last_class_end_period = PERIOD[last_class["end_period"]]
