@@ -4,13 +4,13 @@ clock with schedule for DUT students, on an esp32s3 and a st7735 128x160 display
 ## how it works
 when powered, the MCU will try to connect to a specified AP, then post a login request to sv.dut.udn.vn and save the response session id for future web scraps. now we can get any info exposed on the web interface. retrieved infomation then will be processed into usable format, and display onto the screen.
 ## features
-[x] clock
-[x] schedule
-[ ] custom schedule
-[ ] notices
+- [x] clock
+- [x] schedule
+- [ ] custom schedule
+- [ ] notices
 ## wiring
 ### esp32s3
-tft lcd wiring
+#### tft lcd wiring
 |label   |pin|changeable|
 |--------|---|----------|
 |SCL/SCK |12 |no        |
@@ -19,7 +19,7 @@ tft lcd wiring
 |DC/A0   |5  |yes       |
 |CS      |6  |yes       |
 |BLK/VLED|7  |yes       |
-other
+#### other
 |name       |pin|changeable|
 |-----------|---|----------|
 |RGB_LED_PIN|48 |no        |
