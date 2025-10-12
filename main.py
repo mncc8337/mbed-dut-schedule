@@ -76,9 +76,6 @@ prev_day = -1
 today_schedule = app.get_schedule()
 decorate_text = "Today"
 
-print(app.scraper.get_notices(app.privates["class_code"], Tab.LOP_HOC_PHAN))
-print(app.scraper.get_schedule_of_date("12/11/2025"))
-
 
 while True:
     datetime = time.localtime()
@@ -98,19 +95,10 @@ while True:
         # get next day's schedule if today schedule is done
         if len(today_schedule) > 0:
             last_class = today_schedule[-1]
-            last_class_end_period = dut_clock.PERIOD[last_class["end_period"]]
-            year, month, day, _, _, _, _, _ = datetime
-            t = time.mktime((
-                year,
-                month,
-                day,
-                last_class_end_period[1][0],
-                last_class_end_period[1][1],
-                0,
-                0,
-                0
-            ))
-            if time.time() >= t:
+            last_class_end_period = dut_clock.PERIOD[last_class["end_period"]][1]
+            _, _, _, hour, min, sec, _, _ = datetime
+
+            if f"{hour:02d}:{min:02d}:{sec:02d}" >= f"{last_class_end_period[0]:02d}:{last_class_end_period[1]:02d}:00":
                 get_next_day = True
         else:
             get_next_day = True
