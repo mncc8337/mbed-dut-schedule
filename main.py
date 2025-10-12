@@ -5,6 +5,7 @@ from machine import Pin
 from ST7735 import TFT
 
 import dut_clock
+from scraper import Tab
 
 
 # WARNING:
@@ -74,6 +75,9 @@ app.tft.fill(TFT.WHITE)
 prev_day = -1
 today_schedule = app.get_schedule()
 decorate_text = "Today"
+
+print(app.scraper.get_notices(app.privates["class_code"],Tab.LOP_HOC_PHAN))
+print(app.scraper.get_schedule_of_date("12/11/2025"))
 
 
 while True:

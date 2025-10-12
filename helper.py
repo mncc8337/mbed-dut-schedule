@@ -26,13 +26,75 @@ def quote_plus(s):
     return ''.join(result)
 
 
+def strip_tags(s):
+    result = ""
+    inside = False
+    for c in s:
+        if c == "<":
+            inside = True
+        elif c == ">":
+            inside = False
+        elif not inside:
+            result += c
+    return " ".join(result.split())
+
+
 def html_unescape(s):
-    s = s.replace("&lt;", "<")
-    s = s.replace("&gt;", ">")
-    s = s.replace("&amp;", "&")
-    s = s.replace("&quot;", '"')
-    s = s.replace("&#39;", "'")
-    return s
+    entities = {
+        "lt": "<", "gt": ">", "amp": "&", "quot": '"', "apos": "'",
+        "nbsp": " ", "iexcl": "¡", "cent": "¢", "pound": "£", "curren": "¤",
+        "yen": "¥", "brvbar": "¦", "sect": "§", "uml": "¨", "copy": "©",
+        "ordf": "ª", "laquo": "«", "not": "¬", "shy": "­", "reg": "®",
+        "macr": "¯", "deg": "°", "plusmn": "±", "sup2": "²", "sup3": "³",
+        "acute": "´", "micro": "µ", "para": "¶", "middot": "·", "cedil": "¸",
+        "sup1": "¹", "ordm": "º", "raquo": "»", "frac14": "¼", "frac12": "½",
+        "frac34": "¾", "iquest": "¿", "Agrave": "À", "Aacute": "Á", "Acirc": "Â",
+        "Atilde": "Ã", "Auml": "Ä", "Aring": "Å", "AElig": "Æ", "Ccedil": "Ç",
+        "Egrave": "È", "Eacute": "É", "Ecirc": "Ê", "Euml": "Ë", "Igrave": "Ì",
+        "Iacute": "Í", "Icirc": "Î", "Iuml": "Ï", "ETH": "Ð", "Ntilde": "Ñ",
+        "Ograve": "Ò", "Oacute": "Ó", "Ocirc": "Ô", "Otilde": "Õ", "Ouml": "Ö",
+        "times": "×", "Oslash": "Ø", "Ugrave": "Ù", "Uacute": "Ú", "Ucirc": "Û",
+        "Uuml": "Ü", "Yacute": "Ý", "THORN": "Þ", "szlig": "ß", "agrave": "à",
+        "aacute": "á", "acirc": "â", "atilde": "ã", "auml": "ä", "aring": "å",
+        "aelig": "æ", "ccedil": "ç", "egrave": "è", "eacute": "é", "ecirc": "ê",
+        "euml": "ë", "igrave": "ì", "iacute": "í", "icirc": "î", "iuml": "ï",
+        "eth": "ð", "ntilde": "ñ", "ograve": "ò", "oacute": "ó", "ocirc": "ô",
+        "otilde": "õ", "ouml": "ö", "divide": "÷", "oslash": "ø", "ugrave": "ù",
+        "uacute": "ú", "ucirc": "û", "uuml": "ü", "yacute": "ý", "thorn": "þ",
+        "yuml": "ÿ"
+    }
+
+    result = ""
+    i = 0
+    while i < len(s):
+        if s[i] == "&":
+            j = s.find(";", i)
+            if j == -1:
+                result += s[i]
+                i += 1
+                continue
+            entity = s[i + 1:j]
+
+            if entity.startswith("#x") or entity.startswith("#X"):
+                try:
+                    result += chr(int(entity[2:], 16))
+                except:
+                    result += "&" + entity + ";"
+            elif entity.startswith("#"):
+                try:
+                    result += chr(int(entity[1:]))
+                except:
+                    result += "&" + entity + ";"
+            elif entity in entities:
+                result += entities[entity]
+            else:
+                result += "&" + entity + ";"
+            i = j + 1
+        else:
+            result += s[i]
+            i += 1
+
+    return result
 
 
 def get_hidden_field(html, field_name):

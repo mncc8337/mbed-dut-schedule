@@ -100,14 +100,7 @@ class App:
 
         # connect to an AP
         self.wlan = network.WLAN()
-        self.wlan.active(True)
-        self.wlan.connect(
-            self.privates["ssid"],
-            self.privates["ssid_password"]
-        )
-        while not self.wlan.isconnected():
-            time.sleep_ms(100)
-        print("connected to AP", self.privates["ssid"])
+        self.wifi_active()
 
         # sync time
         self.rtc = rtc
@@ -140,6 +133,7 @@ class App:
         self.schedule = self.scraper.get_schedule()
         print("schedule retrieved")
 
+        # turn off wifi to save power
         self.wlan.active(False)
 
         # bluetooth stuffs
@@ -181,6 +175,19 @@ class App:
             self.screen_brightness = duty_cycle
         self.screen_brightness = max(0, min(100, self.screen_brightness))
         self.led_pwm.duty_u16(int(self.screen_brightness/100 * (2 << 15 - 1)))
+
+    def wifi_active(self):
+        self.wlan.active(True)
+        self.wlan.connect(
+            self.privates["ssid"],
+            self.privates["ssid_password"]
+        )
+        while not self.wlan.isconnected():
+            time.sleep_ms(100)
+        print("connected to AP", self.privates["ssid"])
+
+    def wifi_deactive(self):
+        self.wlan.active(False)
 
     def sync_rtc(self, tz_offset_hours):
         ntptime.settime()
