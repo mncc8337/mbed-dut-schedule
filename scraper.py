@@ -136,7 +136,21 @@ class Scraper:
         table_rows = parse_table_rows(table)
         table_rows.pop(0)
 
-        return table_rows
+        dat = []
+        for row in table_rows:
+            d = row[4].split(',')
+            room = d[2]
+            period = d[1].split('-')
+            dat.append({
+                "class_code": row[1],
+                "class_name": row[2],
+                "lecturer": row[3],
+                "period": period,
+                "room": room,
+                "note": row[7],
+            })
+
+        return dat
 
     def get_notices(self, query, tab):
         # idk why, but this web is literaly shit

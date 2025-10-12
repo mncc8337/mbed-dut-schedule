@@ -76,7 +76,7 @@ prev_day = -1
 today_schedule = app.get_schedule()
 decorate_text = "Today"
 
-print(app.scraper.get_notices(app.privates["class_code"],Tab.LOP_HOC_PHAN))
+print(app.scraper.get_notices(app.privates["class_code"], Tab.LOP_HOC_PHAN))
 print(app.scraper.get_schedule_of_date("12/11/2025"))
 
 

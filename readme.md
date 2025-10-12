@@ -20,9 +20,11 @@ when powered, the MCU will try to connect to a specified AP, then post a login r
 |CS      |6  |yes       |
 |BLK/VLED|7  |yes       |
 #### other
-|name       |pin|changeable|
-|-----------|---|----------|
-|RGB_LED_PIN|48 |no        |
+|name              |pin|changeable|
+|------------------|---|----------|
+|RGB_LED_PIN       |48 |yes       |
+|TOUCH_INCREASE_PIN|8  |yes       |
+|TOUCH_DECREASE_PIN|9  |yes       |
 ### other mcu
 you must find out which `SPI_ID` is available on your mcu **BEFORE putting any files on the mcu**, else it would reset constantly and you will need to install a new micropython on it. to do that, run `mpremote repl` then do:
 ```
@@ -35,6 +37,7 @@ you must find out which `SPI_ID` is available on your mcu **BEFORE putting any f
 and choose the one without any error/reset. 
 after that, connect SCL/SCK and SDA/MOSI to the printed IO pin of the working `SPI_ID`. RST, DC, CS, BLK can be connected to any pin that isn't conflict with anything internally. reflect the changes on the first few line of `main.py`  
 RGB_LED is the pin that control a neopixel led  
+TOUCH_* pins are for ESP32 only. modify the code to use buttons instead if you dont have an esp32.  
 ## installation
 - follow [micropython's documentation](https://micropython.org/download/) on how to install micropython to your mcu
 - install [mpremote](https://docs.micropython.org/en/latest/reference/mpremote.html)
