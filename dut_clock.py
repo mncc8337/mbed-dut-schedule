@@ -203,7 +203,7 @@ class App:
         current_time = helper.get_time()
         self.current_week = int(
             (current_time - self.privates["starting_date_ts"]) // 604800
-        ) + self.privates["starting_week"]
+        ) + self.privates["starting_week"] - 1
 
     async def command_handler(self, data):
         if data[0] == "led":
@@ -434,7 +434,7 @@ class App:
         v = 2
         self.tft.fillrect(
             (2, 2),
-            (sysfont["Width"] * 4 * 5 + 4, 2 + sysfont["Height"] * 4),
+            (156, 2 + sysfont["Height"] * 4),
             TFT.WHITE
         )
         self.tft.text(
@@ -452,6 +452,10 @@ class App:
     def draw_schedule(self, schedule, decorate_text):
         v = 2 + sysfont["Height"] * 4 + 1
         self.tft.fillrect((0, v), (160, 93), TFT.WHITE)
+        if len(schedule) == 0:
+            self.tft.text((2, v), "there is nothing to show", TFT.GRAY, sysfont, 1)
+            return
+
         self.tft.text((2, v), decorate_text, TFT.GRAY, sysfont, 1)
         v += sysfont["Height"]
         for sub in schedule:
@@ -469,7 +473,7 @@ class App:
                 1
             )
             self.tft.text(
-                (sysfont["Width"] * 5 + 7, v),
+                (sysfont["Width"] * 5 + 13, v),
                 f"{PERIOD[sub["start_period"]][0][0]:02d}:{PERIOD[sub["start_period"]][0][1]:02d} - {PERIOD[sub["end_period"]][1][0]:02d}:{PERIOD[sub["end_period"]][1][1]:02d}",
                 TFT.BLACK,
                 sysfont,

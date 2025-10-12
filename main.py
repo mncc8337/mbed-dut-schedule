@@ -89,21 +89,29 @@ while True:
         update_schedule_flag = True
 
     if decorate_text == "Today":
+        get_next_day = False
+
         # get next day's schedule if today schedule is done
-        last_class = today_schedule[-1]
-        last_class_end_period = dut_clock.PERIOD[last_class["end_period"]]
-        year, month, day, _, _, _, _, _ = datetime
-        t = time.mktime((
-            year,
-            month,
-            day,
-            last_class_end_period[1][0],
-            last_class_end_period[1][1],
-            0,
-            0,
-            0
-        ))
-        if time.time() >= t:
+        if len(today_schedule) > 0:
+            last_class = today_schedule[-1]
+            last_class_end_period = dut_clock.PERIOD[last_class["end_period"]]
+            year, month, day, _, _, _, _, _ = datetime
+            t = time.mktime((
+                year,
+                month,
+                day,
+                last_class_end_period[1][0],
+                last_class_end_period[1][1],
+                0,
+                0,
+                0
+            ))
+            if time.time() >= t:
+                get_next_day = True
+        else:
+            get_next_day = True
+
+        if get_next_day:
             schedule_weekday += 1
             if schedule_weekday >= 7:
                 schedule_weekday = 0
