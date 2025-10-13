@@ -5,7 +5,6 @@ from machine import Pin
 from ST7735 import TFT
 
 import dut_clock
-from scraper import Tab
 
 
 # WARNING:
@@ -33,6 +32,7 @@ RGB_LED_PIN = Pin(48)
 
 TOUCH_INCREASE_PIN = Pin(8)
 TOUCH_DECREASE_PIN = Pin(9)
+TOUCH_TAB_CHANGE_PIN = Pin(10)
 TOUCH_THRESHOLD = 35000
 
 MAX_TEXT_LEN = 26
@@ -65,6 +65,7 @@ app = dut_clock.App(
     RGB_LED_PIN,
     TOUCH_INCREASE_PIN,
     TOUCH_DECREASE_PIN,
+    TOUCH_TAB_CHANGE_PIN,
     TOUCH_THRESHOLD,
     BLE_SERVICE_UUID,
     BLE_LED_UUID,
@@ -74,7 +75,7 @@ app = dut_clock.App(
 app.tft.fill(TFT.WHITE)
 prev_day = -1
 today_schedule = app.get_schedule()
-decorate_text = "Today"
+decorate_text = "Lich hoc hom nay"
 
 
 while True:
@@ -86,10 +87,11 @@ while True:
     if datetime[2] != prev_day:
         app.calculate_current_week()
         prev_day = datetime[2]
-        decorate_text = "Today"
+        decorate_text = "Lich hoc hom nay"
         update_schedule_flag = True
+        app.draw_date(datetime[0:3])
 
-    if decorate_text == "Today":
+    if decorate_text == "Lich hoc hom nay":
         get_next_day = False
 
         # get next day's schedule if today schedule is done
@@ -108,15 +110,16 @@ while True:
             if schedule_weekday >= 7:
                 schedule_weekday = 0
                 schedule_week += 1
-            decorate_text = "Tomorrow"
+            decorate_text = "Lich hoc ngay mai"
             update_schedule_flag = True
 
     if update_schedule_flag:
-        app.draw_schedule(
+        app.update_schedule_tab(
             app.get_schedule(schedule_week, schedule_weekday),
             decorate_text
         )
 
-    app.draw_datetime(datetime)
+    app.draw_time(datetime[3:5])
+    app.draw_tab()
 
     time.sleep(30)

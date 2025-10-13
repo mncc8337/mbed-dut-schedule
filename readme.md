@@ -20,11 +20,12 @@ when powered, the MCU will try to connect to a specified AP, then post a login r
 |CS      |6  |yes       |
 |BLK/VLED|7  |yes       |
 #### other
-|name              |pin|changeable|
-|------------------|---|----------|
-|RGB_LED_PIN       |48 |yes       |
-|TOUCH_INCREASE_PIN|8  |yes       |
-|TOUCH_DECREASE_PIN|9  |yes       |
+|name                |pin|changeable|
+|--------------------|---|----------|
+|RGB_LED_PIN         |48 |yes       |
+|TOUCH_INCREASE_PIN  |8  |yes       |
+|TOUCH_DECREASE_PIN  |9  |yes       |
+|TOUCH_TAB_CHANGE_PIN|10 |yes       |
 ### other mcu
 you must find out which `SPI_ID` is available on your mcu **BEFORE putting any files on the mcu**, else it would reset constantly and you will need to install a new micropython on it. to do that, run `mpremote repl` then do:
 ```

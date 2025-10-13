@@ -51,6 +51,13 @@ WEEKDAY = [
 ]
 
 
+class Tab:
+    SCHEDULE = 0
+    CLASS_NOTICES = 1
+    GENENAL_NOTICES = 2
+    MAX = 3
+
+
 class App:
     def __init__(
         self,
@@ -62,6 +69,7 @@ class App:
         rgb_led_pin,
         touch_increase_pin,
         touch_decrease_pin,
+        touch_tab_change_pin,
         touch_threshold,
         ble_service_uuid,
         ble_led_uuid,
@@ -116,8 +124,12 @@ class App:
         self.neopixel = neopixel.NeoPixel(rgb_led_pin, 1)
         print("rgb led initialized")
 
+        self.current_tab = Tab.SCHEDULE
+        self.prev_tab = -1
+
         self.touch1 = TouchPad(touch_increase_pin)
         self.touch2 = TouchPad(touch_decrease_pin)
+        self.touch_tab = TouchPad(touch_tab_change_pin)
         self.touch_threshold = touch_threshold
         print("touch sensor initialized")
 
@@ -132,6 +144,9 @@ class App:
         self.scraper.login()
         self.schedule = self.scraper.get_schedule()
         print("schedule retrieved")
+
+        self.schedule_tab_schedule = None
+        self.schedule_tab_decorate_text = None
 
         # turn off wifi to save power
         self.wlan.active(False)
@@ -304,6 +319,14 @@ class App:
         while True:
             v1 = self.touch1.read()
             v2 = self.touch2.read()
+            vtab = self.touch_tab.read()
+
+            if vtab > self.touch_threshold:
+                self.current_tab += 1
+                if self.current_tab >= Tab.MAX:
+                    self.current_tab = 0
+                print("tab changed to", self.current_tab)
+                await asyncio.sleep(2)
 
             if v1 > self.touch_threshold and v2 > self.touch_threshold:
                 self.bluetooth_toggle()
@@ -317,11 +340,12 @@ class App:
             await asyncio.sleep_ms(10)
 
     async def serial_wait_for_command(self):
-        print("serial command task started, you can now send commands")
-
         poll = select.poll()
         poll.register(sys.stdin, select.POLLIN)
         buffer = ""
+
+        print("serial command task started, you can now send commands")
+
         while True:
             await asyncio.sleep_ms(10)
 
@@ -437,35 +461,41 @@ class App:
                 1
             )
 
-    def draw_datetime(self, datetime):
-        v = 2
-        self.tft.fillrect(
-            (2, 2),
-            (156, 2 + sysfont["Height"] * 4),
-            TFT.WHITE
-        )
+    def draw_date(self, date):
+        self.tft.fillrect((109, 2), (49, 16), TFT.WHITE)
+        self.tft.text((109, 2), f"{date[2]:02d}", TFT.BLACK, sysfont, 2)
+        self.tft.text((137, 2), f"{date[1]:02d}", TFT.BLACK, sysfont, 2)
+        self.tft.fillrect((109, 20), (23, 8), TFT.WHITE)
+        self.tft.text((109, 20), f"{date[0]:04d}", TFT.BLACK, sysfont, 1)
+
+    def draw_time(self, time):
+        self.tft.fillrect((2, 2), (104, 32), TFT.WHITE)
         self.tft.text(
-            (2, v),
-            f"{datetime[3]:02d}:{datetime[4]:02d}",
+            (2, 2),
+            f"{time[0]:02d}:{time[1]:02d}",
             TFT.BLACK,
             sysfont,
             4
         )
-        self.tft.text((109, 3), f"{datetime[2]:02d}", TFT.BLACK, sysfont, 2)
-        self.tft.text((137, 3), f"{datetime[1]:02d}", TFT.BLACK, sysfont, 2)
-        self.tft.text((109, 20), f"{datetime[0]:04d}", TFT.BLACK, sysfont, 1)
-        v += sysfont["Height"] * 4 + 5
+        self.draw_bluetooth_icon()
+        self.draw_bluetooth_paired_icon()
 
-    def draw_schedule(self, schedule, decorate_text):
-        v = 2 + sysfont["Height"] * 4 + 1
-        self.tft.fillrect((0, v), (160, 93), TFT.WHITE)
-        if len(schedule) == 0:
+    def update_schedule_tab(self, schedule, decorate_text):
+        self.schedule_tab_schedule = schedule
+        self.schedule_tab_decorate_text = decorate_text
+        if self.current_tab == Tab.SCHEDULE:
+            self.prev_tab = -1
+
+    def draw_schedule_tab(self):
+        v = 35
+        self.tft.fillrect((2, v), (156, 93), TFT.WHITE)
+        if len(self.schedule_tab_schedule) == 0:
             self.tft.text((2, v), "there is nothing to show", TFT.GRAY, sysfont, 1)
             return
 
-        self.tft.text((2, v), decorate_text, TFT.GRAY, sysfont, 1)
+        self.tft.text((2, v), self.schedule_tab_decorate_text, TFT.GRAY, sysfont, 1)
         v += sysfont["Height"]
-        for sub in schedule:
+        for sub in self.schedule_tab_schedule:
             class_name = vietnamese.to_ascii(sub["class_name"])
             if len(class_name) > 26:
                 class_name = class_name[:23] + "..."
@@ -487,3 +517,16 @@ class App:
                 1
             )
             v += sysfont["Height"] + 1
+
+    def draw_tab(self):
+        if self.prev_tab == self.current_tab:
+            return
+
+        if self.current_tab == Tab.SCHEDULE:
+            self.draw_schedule_tab()
+        elif self.current_tab == Tab.CLASS_NOTICES:
+            pass
+        elif self.current_tab == Tab.GENENAL_NOTICES:
+            pass
+
+        self.prev_tab = self.current_tab
