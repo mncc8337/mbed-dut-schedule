@@ -1,6 +1,10 @@
 import time
 
 
+def reverse_date(date):
+    return "/".join(date.split("/")[::-1])
+
+
 def get_time():
     return time.time() + 946684800
 

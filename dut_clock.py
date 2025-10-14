@@ -3,14 +3,14 @@ import select
 import helper
 import time
 import json
-import network
 import ntptime
-from machine import SPI, PWM
+import network
+from machine import SPI, PWM, RTC
 from machine import TouchPad
 import _thread
 import neopixel
 
-from scraper import Scraper
+import scraper
 from ST7735 import TFT
 from sysfont import sysfont
 import iconfont
@@ -74,7 +74,6 @@ class App:
         ble_service_uuid,
         ble_led_uuid,
         adv_interval_ms,
-        rtc,
     ):
         self.spi = SPI(spi_id, baudrate=20000000)
 
@@ -106,21 +105,6 @@ class App:
             self.privates = json.load(f)
         print("config loaded")
 
-        # connect to an AP
-        self.wlan = network.WLAN()
-        self.wifi_active()
-
-        # sync time
-        self.rtc = rtc
-        while True:
-            try:
-                self.sync_rtc(7)
-                break
-            except Exception as e:
-                print(f"failed to sync time due to {e}, retrying", log_type="ERROR")
-                time.sleep_ms(100)
-        print("time synced")
-
         self.neopixel = neopixel.NeoPixel(rgb_led_pin, 1)
         print("rgb led initialized")
 
@@ -133,11 +117,26 @@ class App:
         self.touch_threshold = touch_threshold
         print("touch sensor initialized")
 
+        # connect to an AP
+        self.wlan = network.WLAN()
+        self.wifi_active()
+        time.sleep(1)
+
+        # sync time
+        while True:
+            try:
+                self.sync_rtc(7)
+                break
+            except Exception as e:
+                print(f"failed to sync time due to error {e}, retrying", log_type="ERROR")
+                time.sleep_ms(100)
+        print("time synced")
+
         self.calculate_current_week()
         print("current week", self.current_week)
 
         print("trying to scraping ...")
-        self.scraper = Scraper(
+        self.scraper = scraper.Scraper(
             self.privates["user"],
             self.privates["password"]
         )
@@ -148,8 +147,12 @@ class App:
         self.schedule_tab_schedule = None
         self.schedule_tab_decorate_text = None
 
+        self.general_notices_tab_notices = None
+
+        self.class_notices_tab_notices = []
+
         # turn off wifi to save power
-        self.wlan.active(False)
+        self.wifi_deactive()
 
         # bluetooth stuffs
 
@@ -192,6 +195,9 @@ class App:
         self.led_pwm.duty_u16(int(self.screen_brightness/100 * (2 << 15 - 1)))
 
     def wifi_active(self):
+        if self.wlan.isconnected():
+            return
+
         self.wlan.active(True)
         self.wlan.connect(
             self.privates["ssid"],
@@ -205,17 +211,10 @@ class App:
         self.wlan.active(False)
 
     def sync_rtc(self, tz_offset_hours):
-        ntptime.settime()
-
-        year, month, day, weekday, hour, minute, second, _ = self.rtc.datetime()
-
-        # apply offset
-        t = time.mktime((year, month, day, hour, minute, second, 0, 0))
-        t += tz_offset_hours * 3600  # adjust for timezone
-
-        # convert back to datetime tuple and update RTC
-        tm = time.localtime(t)
-        self.rtc.datetime((tm[0], tm[1], tm[2], tm[6], tm[3], tm[4], tm[5], 0))
+        t = ntptime.time()
+        t += tz_offset_hours * 3600
+        tm = time.gmtime(t)
+        RTC().datetime((tm[0], tm[1], tm[2], tm[6] + 1, tm[3], tm[4], tm[5], 0))
 
     def set_led_color(self, color):
         self.neopixel[0] = color
@@ -225,7 +224,7 @@ class App:
         current_time = helper.get_time()
         self.current_week = int(
             (current_time - self.privates["starting_date_ts"]) // 604800
-        ) + self.privates["starting_week"] - 1
+        ) + self.privates["starting_week"]
 
     async def command_handler(self, data):
         if data[0] == "led":
@@ -326,7 +325,7 @@ class App:
                 if self.current_tab >= Tab.MAX:
                     self.current_tab = 0
                 print("tab changed to", self.current_tab)
-                await asyncio.sleep(2)
+                self.draw_tab()
 
             if v1 > self.touch_threshold and v2 > self.touch_threshold:
                 self.bluetooth_toggle()
@@ -489,19 +488,19 @@ class App:
     def draw_schedule_tab(self):
         v = 35
         self.tft.fillrect((2, v), (156, 93), TFT.WHITE)
+        self.tft.text((2, v), self.schedule_tab_decorate_text, TFT.GRAY, sysfont, 1)
+        v += sysfont["Height"] + 1
         if len(self.schedule_tab_schedule) == 0:
             self.tft.text((2, v), "there is nothing to show", TFT.GRAY, sysfont, 1)
             return
 
-        self.tft.text((2, v), self.schedule_tab_decorate_text, TFT.GRAY, sysfont, 1)
-        v += sysfont["Height"]
         for sub in self.schedule_tab_schedule:
             class_name = vietnamese.to_ascii(sub["class_name"])
             if len(class_name) > 26:
                 class_name = class_name[:23] + "..."
 
-            self.tft.text((2, v), class_name, TFT.BLUE, sysfont, 1, nowrap=True)
-            v += sysfont["Height"]
+            self.tft.text((2, v), class_name, TFT.BLUE, sysfont, 1)
+            v += sysfont["Height"] + 1
             self.tft.text(
                 (2, v),
                 vietnamese.to_ascii(sub["room"]),
@@ -516,7 +515,113 @@ class App:
                 sysfont,
                 1
             )
-            v += sysfont["Height"] + 1
+            v += sysfont["Height"] + 2
+
+    def update_general_notices_tab(self):
+        self.general_notices_tab_notices = self.scraper.get_notices("", scraper.Tab.DAO_TAO)
+        if self.current_tab == Tab.GENENAL_NOTICES:
+            self.prev_tab = -1
+
+    def draw_general_notices_tab(self):
+        v = 35
+        self.tft.fillrect((2, v), (156, 93), TFT.WHITE)
+        self.tft.text((2, v), "Dao tao", TFT.GRAY, sysfont, 1)
+        v += sysfont["Height"] + 1
+        if len(self.general_notices_tab_notices) == 0:
+            self.tft.text((2, v), "there is nothing to show", TFT.GRAY, sysfont, 1)
+            return
+
+        for date, cap in zip(self.general_notices_tab_notices[0], self.general_notices_tab_notices[1]):
+            self.tft.text((2, v), date, TFT.RED, sysfont, 1)
+            v += self.tft.text(
+                (67, v),
+                vietnamese.to_ascii(cap),
+                TFT.BLACK,
+                sysfont,
+                1
+            )
+            v += sysfont["Height"] + 2
+            if v > 128:
+                return
+
+    def update_class_notices_tab(self):
+        notices = self.scraper.get_notices(self.privates["class_code"], scraper.Tab.LOP_HOC_PHAN)
+        notices = scraper.Scraper.parse_class_notices(notices[1], notices[2], notices[0])
+
+        # remove outdated notices
+        self.class_notices_tab_notices.clear()
+        self.class_notices_tab_notices = []
+        today = time.localtime()
+        today = f"{today[0]:04d}:{today[1]:02d}:{today[2]:02d}"
+
+        for cancelled in notices[0]:
+            if cancelled["cancelled_date"] >= today:
+                self.class_notices_tab_notices.append(cancelled)
+        for make_up in notices[1]:
+            if make_up["make_up_date"] >= today:
+                self.class_notices_tab_notices.append(make_up)
+
+        self.class_notices_tab_notices.sort(key=lambda x: x["cancelled_date"] if "cancelled_date" in x.keys() else x["make_up_date"], reverse=True)
+
+        if self.current_tab == Tab.CLASS_NOTICES:
+            self.prev_tab = -1
+
+    def draw_class_notices_tab(self):
+        v = 35
+        self.tft.fillrect((2, v), (156, 93), TFT.WHITE)
+        self.tft.text((2, v), "Lop hoc phan", TFT.GRAY, sysfont, 1)
+        v += sysfont["Height"] + 1
+        if len(self.class_notices_tab_notices) == 0:
+            self.tft.text((2, v), "there is nothing to show", TFT.GRAY, sysfont, 1)
+            return
+
+        for note in self.class_notices_tab_notices:
+            if "cancelled_date" in note.keys():
+                self.tft.text((2, v), "Nghi hoc", TFT.GREEN, sysfont, 1)
+                self.tft.text(
+                    (47, v),
+                    " " + helper.reverse_date(note["cancelled_date"])[:-5],
+                    TFT.BLACK,
+                    sysfont,
+                    1,
+                )
+                v += sysfont["Height"] + 1
+                self.tft.text(
+                    (2, v),
+                    vietnamese.to_ascii(note["class_name"]),
+                    TFT.BLACK,
+                    sysfont,
+                    1,
+                    nowrap=True,
+                )
+                v += sysfont["Height"] + 2
+            else:
+                self.tft.text(
+                    (2, v),
+                    "Hoc bu",
+                    TFT.RED,
+                    sysfont,
+                    1,
+                )
+                self.tft.text(
+                    (41, v),
+                    " " + helper.reverse_date(note["make_up_date"])[:-5] + ", tiet " + note["start_period"] + '-' + note["end_period"],
+                    TFT.BLACK,
+                    sysfont,
+                    1,
+                )
+                v += sysfont["Height"] + 1
+                self.tft.text(
+                    (2, v),
+                    "Mon " + vietnamese.to_ascii(note["class_name"]),
+                    TFT.BLACK,
+                    sysfont,
+                    1,
+                    nowrap=True,
+                )
+                v += sysfont["Height"] + 2
+            if v > 128:
+                return
 
     def draw_tab(self):
         if self.prev_tab == self.current_tab:
@@ -525,8 +630,8 @@ class App:
         if self.current_tab == Tab.SCHEDULE:
             self.draw_schedule_tab()
         elif self.current_tab == Tab.CLASS_NOTICES:
-            pass
+            self.draw_class_notices_tab()
         elif self.current_tab == Tab.GENENAL_NOTICES:
-            pass
+            self.draw_general_notices_tab()
 
         self.prev_tab = self.current_tab

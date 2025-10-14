@@ -1,6 +1,5 @@
 import builtins
 import time
-from machine import RTC
 from machine import Pin
 from ST7735 import TFT
 
@@ -41,15 +40,13 @@ BLE_SERVICE_UUID = 'cebcf692-9250-4457-86eb-556ab41ca932'
 BLE_LED_UUID = '8fff00d0-f1c4-437f-a369-e99227720b6c'
 ADV_INTERVAL_MS = 250_000
 
-rtc = RTC()
-
 
 def log(*args, log_type="INFO", not_log=False, **kwargs):
     if not_log:
         builtins.print(*args, **kwargs)
         return
 
-    dt = rtc.datetime()
+    dt = time.localtime()
     timestamp = f"{dt[0]:04d}-{dt[1]:02d}-{dt[2]:02d} {dt[4]:02d}:{dt[5]:02d}:{dt[6]:02d}"
     builtins.print(f"[{timestamp}] [{log_type}]", *args, **kwargs)
 
@@ -70,7 +67,6 @@ app = dut_clock.App(
     BLE_SERVICE_UUID,
     BLE_LED_UUID,
     ADV_INTERVAL_MS,
-    rtc,
 )
 app.tft.fill(TFT.WHITE)
 prev_day = -1
@@ -89,6 +85,11 @@ while True:
         prev_day = datetime[2]
         decorate_text = "Lich hoc hom nay"
         update_schedule_flag = True
+        print("updating notices ...")
+        app.wifi_active()
+        app.update_general_notices_tab()
+        app.update_class_notices_tab()
+        app.wifi_deactive()
         app.draw_date(datetime[0:3])
 
     if decorate_text == "Lich hoc hom nay":
