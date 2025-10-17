@@ -213,7 +213,10 @@ class App:
     def sync_rtc(self, tz_offset_hours):
         t = ntptime.time()
         t += tz_offset_hours * 3600
+        print("time", t)
         tm = time.gmtime(t)
+        for i in range(len(tm)):
+            print(i, tm[i])
         RTC().datetime((tm[0], tm[1], tm[2], tm[6] + 1, tm[3], tm[4], tm[5], 0))
 
     def set_led_color(self, color):

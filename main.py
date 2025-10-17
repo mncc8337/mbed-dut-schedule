@@ -47,7 +47,7 @@ def log(*args, log_type="INFO", not_log=False, **kwargs):
         return
 
     dt = time.localtime()
-    timestamp = f"{dt[0]:04d}-{dt[1]:02d}-{dt[2]:02d} {dt[4]:02d}:{dt[5]:02d}:{dt[6]:02d}"
+    timestamp = f"{dt[0]:04d}-{dt[1]:02d}-{dt[2]:02d} {dt[3]:02d}:{dt[4]:02d}:{dt[5]:02d}"
     builtins.print(f"[{timestamp}] [{log_type}]", *args, **kwargs)
 
 
@@ -70,6 +70,7 @@ app = dut_clock.App(
 )
 app.tft.fill(TFT.WHITE)
 prev_day = -1
+prev_hour = -1
 today_schedule = app.get_schedule()
 decorate_text = "Lich hoc hom nay"
 
@@ -81,16 +82,20 @@ while True:
     update_schedule_flag = False
 
     if datetime[2] != prev_day:
+        print("updating schedule ...")
         app.calculate_current_week()
         prev_day = datetime[2]
         decorate_text = "Lich hoc hom nay"
         update_schedule_flag = True
+        app.draw_date(datetime[0:3])
+
+    if datetime[3] != prev_hour:
         print("updating notices ...")
         app.wifi_active()
         app.update_general_notices_tab()
         app.update_class_notices_tab()
         app.wifi_deactive()
-        app.draw_date(datetime[0:3])
+        prev_hour = datetime[3]
 
     if decorate_text == "Lich hoc hom nay":
         get_next_day = False
@@ -115,12 +120,13 @@ while True:
             update_schedule_flag = True
 
     if update_schedule_flag:
+        today_schedule = app.get_schedule(schedule_week, schedule_weekday)
         app.update_schedule_tab(
-            app.get_schedule(schedule_week, schedule_weekday),
+            today_schedule,
             decorate_text
         )
 
     app.draw_time(datetime[3:5])
     app.draw_tab()
 
-    time.sleep(30)
+    time.sleep(15)
