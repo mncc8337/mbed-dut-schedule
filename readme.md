@@ -1,13 +1,13 @@
 # mbed-dut-schedule
-clock with schedule for DUT students, on an esp32s3 and a st7735 128x160 display
+a clock with schedule for [DUT](https://dut.udn.vn/) students, on an esp32s3 with a st7735 128x160 display
 ![demo](demo.jpg)
 ## how it works
-when powered, the MCU will try to connect to a specified AP, then post a login request to sv.dut.udn.vn and save the response session id for future web scraps. now we can get any info exposed on the web interface. retrieved infomation then will be processed into usable format, and display onto the screen.
+when powered, the MCU will try to connect to a specified AP, then post a login request to sv.dut.udn.vn and save the response's session id for future web scraps. now it can get any info exposed on the web interface. retrieved infomation will be processed into usable formats, and displayed onto the screen.
 ## features
 - [x] clock
 - [x] schedule
 - [ ] custom schedule
-- [ ] notices
+- [x] notices
 ## wiring
 ### esp32s3
 #### tft lcd wiring
@@ -36,7 +36,7 @@ you must find out which `SPI_ID` is available on your mcu **BEFORE putting any f
 ...
 ```
 and choose the one without any error/reset. 
-after that, connect SCL/SCK and SDA/MOSI to the printed IO pin of the working `SPI_ID`. RST, DC, CS, BLK can be connected to any pin that isn't conflict with anything internally. reflect the changes on the first few line of `main.py`  
+after that, connect SCL/SCK and SDA/MOSI to the printed IO pin of the working `SPI_ID`. RST, DC, CS, BLK can be connected to any pin that isn't conflict with anything internally. reflect changes on the first few line of `main.py`  
 RGB_LED is the pin that control a neopixel led  
 TOUCH_* pins are for ESP32 only. modify the code to use buttons instead if you dont have an esp32.  
 ## installation
@@ -55,4 +55,4 @@ chmod +x run.sh
 ./run.sh
 
 ```
-let the script run until it's complete, then you can do <kbd>Ctrl</kbd> + <kbd>C</kbd> to exit
+let the script run until it complete, then you can do <kbd>Ctrl</kbd> + <kbd>X</kbd> to exit
