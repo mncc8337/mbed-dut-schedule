@@ -72,7 +72,7 @@ app.tft.fill(TFT.WHITE)
 prev_day = -1
 prev_hour = -1
 today_schedule = app.get_schedule()
-decorate_text = "Lich hoc hom nay"
+decorate_text = "Lịch học hôm nay"
 
 
 while True:
@@ -86,7 +86,7 @@ while True:
         print("updating schedule ...")
         app.calculate_current_week()
         prev_day = datetime[2]
-        decorate_text = "Lich hoc hom nay"
+        decorate_text = "Lịch học hôm nay"
         update_schedule_flag = True
         app.draw_date(datetime[0:3])
 
@@ -98,7 +98,7 @@ while True:
         app.wifi_deactive()
         prev_hour = datetime[3]
 
-    if decorate_text == "Lich hoc hom nay":
+    if decorate_text == "Lịch học hôm nay":
         get_next_day = False
 
         # get next day's schedule if today schedule is done
@@ -120,7 +120,7 @@ while True:
                 schedule_week += 1
             schedule_weekday = nextweekday
             schedule_date = f"{nextdate[0]:04d}/{nextdate[1]:02d}/{nextdate[2]:02d}"
-            decorate_text = "Lich hoc ngay mai"
+            decorate_text = "Lịch học ngày mai"
             update_schedule_flag = True
 
     if update_schedule_flag:

@@ -14,7 +14,6 @@ import scraper
 from ST7735 import TFT
 from sysfont import sysfont
 import iconfont
-import vietnamese
 
 import asyncio
 import aioble
@@ -519,11 +518,11 @@ class App:
         self.tft.text((2, v), self.schedule_tab_decorate_text, TFT.GRAY, sysfont, 1)
         v += sysfont["Height"] + 1
         if len(self.schedule_tab_schedule) == 0:
-            self.tft.text((2, v), "there is nothing to show", TFT.GRAY, sysfont, 1)
+            self.tft.text((2, v), "Không có gì ở đây cả :)", TFT.GRAY, sysfont, 1)
             return
 
         for sub in self.schedule_tab_schedule:
-            class_name = vietnamese.to_ascii(sub["class_name"])
+            class_name = sub["class_name"]
             if len(class_name) > 26:
                 class_name = class_name[:23] + "..."
 
@@ -531,7 +530,7 @@ class App:
             v += sysfont["Height"] + 1
             self.tft.text(
                 (2, v),
-                vietnamese.to_ascii(sub["room"]),
+                sub["room"],
                 TFT.BLACK,
                 sysfont,
                 1
@@ -553,17 +552,17 @@ class App:
     def draw_general_notices_tab(self):
         v = 35
         self.tft.fillrect((2, v), (156, 93), TFT.WHITE)
-        self.tft.text((2, v), "Dao tao", TFT.GRAY, sysfont, 1)
+        self.tft.text((2, v), "Đào tạo", TFT.GRAY, sysfont, 1)
         v += sysfont["Height"] + 1
         if len(self.general_notices_tab_notices) == 0:
-            self.tft.text((2, v), "there is nothing to show", TFT.GRAY, sysfont, 1)
+            self.tft.text((2, v), "Không có gì ở đây cả :)", TFT.GRAY, sysfont, 1)
             return
 
         for date, cap in zip(self.general_notices_tab_notices[0], self.general_notices_tab_notices[1]):
             self.tft.text((2, v), date, TFT.RED, sysfont, 1)
             v += self.tft.text(
                 (67, v),
-                vietnamese.to_ascii(cap),
+                cap,
                 TFT.BLACK,
                 sysfont,
                 1
@@ -597,15 +596,15 @@ class App:
     def draw_class_notices_tab(self):
         v = 35
         self.tft.fillrect((2, v), (156, 93), TFT.WHITE)
-        self.tft.text((2, v), "Lop hoc phan", TFT.GRAY, sysfont, 1)
+        self.tft.text((2, v), "Lớp học phần", TFT.GRAY, sysfont, 1)
         v += sysfont["Height"] + 1
         if len(self.class_notices_tab_notices) == 0:
-            self.tft.text((2, v), "there is nothing to show", TFT.GRAY, sysfont, 1)
+            self.tft.text((2, v), "Không có gì ở đây cả :)", TFT.GRAY, sysfont, 1)
             return
 
         for note in self.class_notices_tab_notices:
             if "cancelled_date" in note.keys():
-                self.tft.text((2, v), "Nghi hoc", TFT.GREEN, sysfont, 1)
+                self.tft.text((2, v), "Nghỉ học", TFT.GREEN, sysfont, 1)
                 self.tft.text(
                     (47, v),
                     " " + helper.reverse_date(note["cancelled_date"])[:-5],
@@ -616,7 +615,7 @@ class App:
                 v += sysfont["Height"] + 1
                 self.tft.text(
                     (2, v),
-                    vietnamese.to_ascii(note["class_name"]),
+                    note["class_name"],
                     TFT.BLACK,
                     sysfont,
                     1,
@@ -626,14 +625,14 @@ class App:
             else:
                 self.tft.text(
                     (2, v),
-                    "Hoc bu",
+                    "Học bù",
                     TFT.RED,
                     sysfont,
                     1,
                 )
                 self.tft.text(
                     (41, v),
-                    " " + helper.reverse_date(note["make_up_date"])[:-5] + ", tiet " + str(note["start_period"]) + '-' + str(note["end_period"]),
+                    " " + helper.reverse_date(note["make_up_date"])[:-5] + ", tiết " + str(note["start_period"]) + '-' + str(note["end_period"]),
                     TFT.BLACK,
                     sysfont,
                     1,
@@ -641,7 +640,7 @@ class App:
                 v += sysfont["Height"] + 1
                 self.tft.text(
                     (2, v),
-                    "Mon " + vietnamese.to_ascii(note["class_name"]),
+                    "Môn " + note["class_name"],
                     TFT.BLACK,
                     sysfont,
                     1,
