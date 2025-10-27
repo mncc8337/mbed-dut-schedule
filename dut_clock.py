@@ -213,10 +213,7 @@ class App:
     def sync_rtc(self, tz_offset_hours):
         t = ntptime.time()
         t += tz_offset_hours * 3600
-        print("time", t)
         tm = time.gmtime(t)
-        for i in range(len(tm)):
-            print(i, tm[i])
         RTC().datetime((tm[0], tm[1], tm[2], tm[6] + 1, tm[3], tm[4], tm[5], 0))
 
     def set_led_color(self, color):
@@ -399,7 +396,7 @@ class App:
 
         asyncio.run(main())
 
-    def get_schedule(self, week=None, weekday=None):
+    def get_schedule(self, week=None, weekday=None, date=None):
         available = []
 
         if week is None:
@@ -419,6 +416,34 @@ class App:
 
             # compare week day
             if WEEKDAY[weekday] == sub["weekday"]:
+                if date:
+                    # check if the class is cancelled or not
+                    cancelled = False
+                    for notice in self.class_notices_tab_notices:
+                        if "cancelled_date" not in notice.keys():
+                            continue
+                        if notice["cancelled_date"] == date:
+                            cancelled = True
+                            break
+                    if cancelled:
+                        continue
+                available.append(sub)
+
+        # add make-up classes
+        for notice in self.class_notices_tab_notices:
+            if "make_up_date" not in notice.keys():
+                continue
+            if notice["make_up_date"] == date:
+                sub = {
+                    "class_code": "N/A",
+                    "class_name": "BÙ " + notice["class_name"],
+                    "lecturer": notice["lecturer"],
+                    "weekday": weekday,
+                    "start_period": notice["start_period"],
+                    "end_period": notice["end_period"],
+                    "room": notice["room"],
+                    "weeks": [[week, week]],
+                }
                 available.append(sub)
 
         # sort in period order
@@ -555,7 +580,7 @@ class App:
         self.class_notices_tab_notices.clear()
         self.class_notices_tab_notices = []
         today = time.localtime()
-        today = f"{today[0]:04d}:{today[1]:02d}:{today[2]:02d}"
+        today = f"{today[0]:04d}/{today[1]:02d}/{today[2]:02d}"
 
         for cancelled in notices[0]:
             if cancelled["cancelled_date"] >= today:
@@ -564,7 +589,7 @@ class App:
             if make_up["make_up_date"] >= today:
                 self.class_notices_tab_notices.append(make_up)
 
-        self.class_notices_tab_notices.sort(key=lambda x: x["cancelled_date"] if "cancelled_date" in x.keys() else x["make_up_date"], reverse=True)
+        self.class_notices_tab_notices.sort(key=lambda x: x["cancelled_date"] if "cancelled_date" in x.keys() else x["make_up_date"])
 
         if self.current_tab == Tab.CLASS_NOTICES:
             self.prev_tab = -1
@@ -608,7 +633,7 @@ class App:
                 )
                 self.tft.text(
                     (41, v),
-                    " " + helper.reverse_date(note["make_up_date"])[:-5] + ", tiet " + note["start_period"] + '-' + note["end_period"],
+                    " " + helper.reverse_date(note["make_up_date"])[:-5] + ", tiet " + str(note["start_period"]) + '-' + str(note["end_period"]),
                     TFT.BLACK,
                     sysfont,
                     1,

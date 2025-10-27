@@ -232,8 +232,8 @@ class Scraper:
                     "date_of_notice": date,
                     "lecturer": lecturer,
                     "class_name": class_name,
-                    "start_period": start_period.strip(),
-                    "end_period": end_period.strip(),
+                    "start_period": int(start_period.strip()),
+                    "end_period": int(end_period.strip()),
                     "cancelled_date": reverse_date(cancelled_date),
                 })
 
@@ -269,8 +269,8 @@ class Scraper:
                     "lecturer": lecturer,
                     "class_name": class_name,
                     "make_up_date": reverse_date(make_up_date),
-                    "start_period": start_period.strip(),
-                    "end_period": end_period.strip(),
+                    "start_period": int(start_period.strip()),
+                    "end_period": int(end_period.strip()),
                     "room": room,
                 })
 

@@ -78,6 +78,7 @@ decorate_text = "Lich hoc hom nay"
 while True:
     datetime = time.localtime()
     schedule_weekday = datetime[6]
+    schedule_date = None
     schedule_week = app.current_week
     update_schedule_flag = False
 
@@ -112,15 +113,22 @@ while True:
             get_next_day = True
 
         if get_next_day:
-            schedule_weekday += 1
-            if schedule_weekday >= 7:
-                schedule_weekday = 0
+            curr_sec = time.mktime(datetime)
+            nextdate = time.localtime(curr_sec + 86400)
+            nextweekday = nextdate[6]
+            if nextweekday < schedule_weekday:
                 schedule_week += 1
+            schedule_weekday = nextweekday
+            schedule_date = f"{nextdate[0]:04d}/{nextdate[1]:02d}/{nextdate[2]:02d}"
             decorate_text = "Lich hoc ngay mai"
             update_schedule_flag = True
 
     if update_schedule_flag:
-        today_schedule = app.get_schedule(schedule_week, schedule_weekday)
+        today_schedule = app.get_schedule(
+            schedule_week,
+            schedule_weekday,
+            schedule_date
+        )
         app.update_schedule_tab(
             today_schedule,
             decorate_text
