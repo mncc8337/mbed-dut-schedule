@@ -1,6 +1,6 @@
 import builtins
 import time
-from machine import Pin, light_sleep
+from machine import Pin, lightsleep
 from ST7735 import TFT
 
 import dut_clock
@@ -84,13 +84,15 @@ while True:
     # dim display in nighttime
     if datetime[3] >= 22:
         app.set_backlight_output(25)
-    elif datetime[3] >= 0 and datetime[3] < 5:
+
+    # sleep
+    if datetime[3] >= 1 and datetime[3] < 5:
         datetime_copy = list(datetime.copy())
         datetime_copy[3] = 5
         datetime_copy[4] = 0
         datetime_copy[5] = 0
         sleep_time = time.mktime(tuple(datetime_copy)) - time.mktime(datetime)
-        light_sleep(sleep_time * 1000)
+        lightsleep(sleep_time * 1000)
         time.sleep(1)
         continue
 
