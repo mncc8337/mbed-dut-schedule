@@ -1,6 +1,6 @@
 import builtins
 import time
-from machine import Pin
+from machine import Pin, light_sleep
 from ST7735 import TFT
 
 import dut_clock
@@ -45,7 +45,6 @@ def log(*args, log_type="INFO", not_log=False, **kwargs):
     if not_log:
         builtins.print(*args, **kwargs)
         return
-
     dt = time.localtime()
     timestamp = f"{dt[0]:04d}-{dt[1]:02d}-{dt[2]:02d} {dt[3]:02d}:{dt[4]:02d}:{dt[5]:02d}"
     builtins.print(f"[{timestamp}] [{log_type}]", *args, **kwargs)
@@ -78,9 +77,22 @@ decorate_text = "Lịch học hôm nay"
 while True:
     datetime = time.localtime()
     schedule_weekday = datetime[6]
-    schedule_date = None
+    schedule_date = f"{datetime[0]:04d}/{datetime[1]:02d}/{datetime[2]:02d}"
     schedule_week = app.current_week
     update_schedule_flag = False
+
+    # dim display in nighttime
+    if datetime[3] >= 22:
+        app.set_backlight_output(25)
+    elif datetime[3] >= 0 and datetime[3] < 5:
+        datetime_copy = list(datetime.copy())
+        datetime_copy[3] = 5
+        datetime_copy[4] = 0
+        datetime_copy[5] = 0
+        sleep_time = time.mktime(tuple(datetime_copy)) - time.mktime(datetime)
+        light_sleep(sleep_time * 1000)
+        time.sleep(1)
+        continue
 
     if datetime[2] != prev_day:
         print("updating schedule ...")

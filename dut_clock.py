@@ -415,17 +415,16 @@ class App:
 
             # compare week day
             if WEEKDAY[weekday] == sub["weekday"]:
-                if date:
-                    # check if the class is cancelled or not
-                    cancelled = False
-                    for notice in self.class_notices_tab_notices:
-                        if "cancelled_date" not in notice.keys():
-                            continue
-                        if notice["cancelled_date"] == date:
-                            cancelled = True
-                            break
-                    if cancelled:
+                # check if the class is cancelled or not
+                cancelled = False
+                for notice in self.class_notices_tab_notices:
+                    if "cancelled_date" not in notice.keys():
                         continue
+                    if notice["cancelled_date"] == date:
+                        cancelled = True
+                        break
+                if cancelled:
+                    continue
                 available.append(sub)
 
         # add make-up classes
