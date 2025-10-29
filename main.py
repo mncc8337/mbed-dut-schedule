@@ -1,6 +1,6 @@
 import builtins
 import time
-from machine import Pin, lightsleep
+from machine import Pin, deepsleep
 from ST7735 import TFT
 
 import dut_clock
@@ -83,7 +83,7 @@ while True:
 
     # dim display in nighttime
     if datetime[3] >= 22:
-        app.set_backlight_output(25)
+        app.set_backlight_output(20)
 
     # sleep
     if datetime[3] >= 1 and datetime[3] < 5:
@@ -92,9 +92,10 @@ while True:
         datetime_copy[4] = 0
         datetime_copy[5] = 0
         sleep_time = time.mktime(tuple(datetime_copy)) - time.mktime(datetime)
-        lightsleep(sleep_time * 1000)
-        time.sleep(1)
-        continue
+        app.set_backlight_output(0)
+        time.sleep_ms(10)
+        deepsleep(sleep_time * 1000)
+        # mcu should reset at this point
 
     if datetime[2] != prev_day:
         print("updating schedule ...")
@@ -104,7 +105,8 @@ while True:
         update_schedule_flag = True
         app.draw_date(datetime[0:3])
 
-    if datetime[3] != prev_hour:
+    # update notices every 2 hrs
+    if datetime[3] >= prev_hour + 2:
         print("updating notices ...")
         app.wifi_active()
         app.update_general_notices_tab()

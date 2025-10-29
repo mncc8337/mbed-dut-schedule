@@ -1,4 +1,5 @@
 import sys
+import math
 import select
 import helper
 import time
@@ -49,6 +50,11 @@ WEEKDAY = [
     "Chủ Nhật"
 ]
 
+GAMMA = 2.8
+DUTY_CYCLE_LUT = tuple(
+    int(((i / 100.0) ** GAMMA) * 100) for i in range(101)
+)
+
 
 class Tab:
     SCHEDULE = 0
@@ -84,8 +90,8 @@ class App:
 
         # setup screen led pwm
         self.led_pwm = PWM(blk_pin, freq=5000, duty_u16=0)
-        self.screen_brightness = 100
-        self.set_backlight_output(100)
+        self.screen_brightness = 75
+        self.set_backlight_output(75)
 
         self.tft.fill(TFT.WHITE)
         self.tft.text(
@@ -119,7 +125,7 @@ class App:
         # connect to an AP
         self.wlan = network.WLAN()
         self.wifi_active()
-        time.sleep(1)
+        time.sleep_ms(100)
 
         # sync time
         while True:
@@ -134,22 +140,22 @@ class App:
         self.calculate_current_week()
         print("current week", self.current_week)
 
+        self.schedule_tab_schedule = None
+        self.schedule_tab_decorate_text = None
+        self.general_notices_tab_notices = None
+        self.class_notices_tab_notices = []
+
         print("trying to scraping ...")
         self.scraper = scraper.Scraper(
             self.privates["user"],
             self.privates["password"]
         )
         self.scraper.login()
+
         self.schedule = self.scraper.get_schedule()
+        self.update_general_notices_tab()
+        self.update_class_notices_tab()
         print("schedule retrieved")
-
-        self.schedule_tab_schedule = None
-        self.schedule_tab_decorate_text = None
-
-        self.general_notices_tab_notices = None
-
-        self.class_notices_tab_notices = []
-
         # turn off wifi to save power
         self.wifi_deactive()
 
@@ -191,7 +197,10 @@ class App:
         elif type(duty_cycle) is int:
             self.screen_brightness = duty_cycle
         self.screen_brightness = max(0, min(100, self.screen_brightness))
-        self.led_pwm.duty_u16(int(self.screen_brightness/100 * (2 << 15 - 1)))
+        print(self.screen_brightness)
+        self.led_pwm.duty_u16(
+            int(DUTY_CYCLE_LUT[self.screen_brightness] * (2 << 15 - 1) / 100)
+        )
 
     def wifi_active(self):
         if self.wlan.isconnected():
@@ -398,6 +407,10 @@ class App:
     def get_schedule(self, week=None, weekday=None, date=None):
         available = []
 
+        if date is None:
+            datetime = time.localtime()
+            date = f"{datetime[0]:04d}/{datetime[1]:02d}/{datetime[2]:02d}"
+
         if week is None:
             week = self.current_week
         if weekday is None:
@@ -418,6 +431,8 @@ class App:
                 # check if the class is cancelled or not
                 cancelled = False
                 for notice in self.class_notices_tab_notices:
+                    if notice["class_name"] != sub["class_name"]:
+                        continue
                     if "cancelled_date" not in notice.keys():
                         continue
                     if notice["cancelled_date"] == date:
