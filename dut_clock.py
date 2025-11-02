@@ -182,9 +182,18 @@ class App:
         self.bluetooth_started = False
         self.bluetooth_paired = False
 
-        # start the control thread
-        _thread.start_new_thread(self.second_thread, ())
+        self.start_second_thread()
         print("control thread started")
+
+    def start_second_thread(self):
+        self.second_thread_running = True
+        _thread.start_new_thread(self.second_thread, ())
+        time.sleep(1)
+
+    def stop_second_thread(self):
+        self.bluetooth_stop()
+        self.second_thread_running = False
+        time.sleep(1)
 
     def set_backlight_output(self, duty_cycle):
         if type(duty_cycle) is str:
@@ -197,7 +206,6 @@ class App:
         elif type(duty_cycle) is int:
             self.screen_brightness = duty_cycle
         self.screen_brightness = max(0, min(100, self.screen_brightness))
-        print(self.screen_brightness)
         self.led_pwm.duty_u16(
             int(DUTY_CYCLE_LUT[self.screen_brightness] * (2 << 15 - 1) / 100)
         )
@@ -270,7 +278,7 @@ class App:
             print("unknown command", log_type="ERROR")
 
     async def bluetooth_peripheral_task(self):
-        while self.bluetooth_on:
+        while self.second_thread_running and self.bluetooth_on:
             try:
                 async with await aioble.advertise(
                     self.adv_interval_ms,
@@ -292,7 +300,7 @@ class App:
                 await asyncio.sleep_ms(100)
 
     async def bluetooth_wait_for_command(self):
-        while self.bluetooth_on:
+        while self.second_thread_running and self.bluetooth_on:
             try:
                 try:
                     # wait for data for 5 secs
@@ -323,7 +331,7 @@ class App:
             self.bluetooth_paired = False
 
     async def input_handler_task(self):
-        while True:
+        while self.second_thread_running:
             v1 = self.touch1.read()
             v2 = self.touch2.read()
             vtab = self.touch_tab.read()
@@ -353,7 +361,7 @@ class App:
 
         print("serial command task started, you can now send commands")
 
-        while True:
+        while self.second_thread_running:
             await asyncio.sleep_ms(10)
 
             res = poll.poll(0)
@@ -385,7 +393,7 @@ class App:
             asyncio.create_task(self.serial_wait_for_command())
             ble_tasks = []
 
-            while True:
+            while self.second_thread_running:
                 if self.bluetooth_on and not self.bluetooth_started:
                     self.bluetooth_started = True
                     ble_tasks = [
