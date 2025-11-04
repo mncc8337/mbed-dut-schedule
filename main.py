@@ -72,6 +72,7 @@ prev_day = -1
 prev_hour = -1
 today_schedule = app.get_schedule()
 decorate_text = "Lịch học hôm nay"
+dim_at_night = False
 
 
 while True:
@@ -82,8 +83,9 @@ while True:
     update_schedule_flag = False
 
     # dim display in nighttime
-    if datetime[3] >= 21:
-        app.set_backlight_output(5)
+    if datetime[3] * 60 + datetime[4] > 22 * 60 + 30 and not dim_at_night:
+        app.set_backlight_output(20)
+        dim_at_night = True
 
     # sleep
     if datetime[3] >= 0 and datetime[3] < 5:
@@ -97,6 +99,7 @@ while True:
         time.sleep(sleep_time)
         app.start_second_thread()
         app.set_backlight_output(75)
+        dim_at_night = False
         continue
 
     if datetime[2] != prev_day:
